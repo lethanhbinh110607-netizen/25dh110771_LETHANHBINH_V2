@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Entity;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Web;
@@ -44,14 +45,25 @@ namespace _25dh110771_LETHANHBINH.Areas.Admin.Controllers
         }
 
         // POST: Admin/Products/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for 
-        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create([Bind(Include = "ProductID,CategoryID,ProductName,ProductDescription,ProductPrice,ProductImage")] Product product)
+        public ActionResult Create([Bind(Include = "ProductID,CategoryID,ProductName,ProductDescription,ProductPrice,ProductImage")] Product product, HttpPostedFileBase ImageFile)
         {
             if (ModelState.IsValid)
             {
+                // Xử lý lưu file ảnh nếu người dùng có chọn ảnh
+                if (ImageFile != null && ImageFile.ContentLength > 0)
+                {
+                    string fileName = Path.GetFileName(ImageFile.FileName);
+                    string path = Path.Combine(Server.MapPath("~/Content/images/"), fileName);
+                    ImageFile.SaveAs(path);
+                    product.ProductImage = fileName; // Lưu tên file vào CSDL
+                }
+
+                // Tự động tính ProductID tiếp theo để tránh lỗi trùng khóa chính
+                var maxId = db.Products.Any() ? db.Products.Max(p => p.ProductID) : 0;
+                product.ProductID = maxId + 1;
+
                 db.Products.Add(product);
                 db.SaveChanges();
                 return RedirectToAction("Index");
@@ -78,14 +90,21 @@ namespace _25dh110771_LETHANHBINH.Areas.Admin.Controllers
         }
 
         // POST: Admin/Products/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for 
-        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ProductID,CategoryID,ProductName,ProductDescription,ProductPrice,ProductImage")] Product product)
+        public ActionResult Edit([Bind(Include = "ProductID,CategoryID,ProductName,ProductDescription,ProductPrice,ProductImage")] Product product, HttpPostedFileBase ImageFile)
         {
             if (ModelState.IsValid)
             {
+                // Xử lý cập nhật ảnh mới nếu có chọn file
+                if (ImageFile != null && ImageFile.ContentLength > 0)
+                {
+                    string fileName = Path.GetFileName(ImageFile.FileName);
+                    string path = Path.Combine(Server.MapPath("~/Content/images/"), fileName);
+                    ImageFile.SaveAs(path);
+                    product.ProductImage = fileName;
+                }
+
                 db.Entry(product).State = EntityState.Modified;
                 db.SaveChanges();
                 return RedirectToAction("Index");
